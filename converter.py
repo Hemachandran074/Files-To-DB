@@ -4,14 +4,57 @@ import pandas as pd
 import os
 import tempfile
 import shutil
-import tabula
+import tabula.io
 import PyPDF2
 import openpyxl
 from pathlib import Path
 
+def setup_java_path():
+    """Setup Java path based on common installation locations"""
+    import os
+    import platform
+    
+    system = platform.system().lower()
+    
+    if system == 'windows':
+        # Common Java installation paths on Windows
+        possible_paths = [
+            r"C:\Program Files\Java\jdk-17\bin",
+            r"C:\Program Files\Java\jdk-11\bin",
+            r"C:\Program Files\Java\jdk1.8.0\bin",
+            r"C:\Program Files (x86)\Java\jdk-17\bin",
+            r"C:\Program Files (x86)\Java\jdk-11\bin",
+            r"C:\Program Files (x86)\Java\jdk1.8.0\bin"
+        ]
+    elif system == 'darwin':  # macOS
+        possible_paths = [
+            "/usr/local/opt/openjdk/bin",
+            "/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home/bin",
+            "/Library/Java/JavaVirtualMachines/jdk-11.jdk/Contents/Home/bin",
+            "/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/bin"
+        ]
+    else:  # Linux
+        possible_paths = [
+            "/usr/lib/jvm/java-17-openjdk-amd64/bin",
+            "/usr/lib/jvm/java-11-openjdk-amd64/bin",
+            "/usr/lib/jvm/java-8-openjdk-amd64/bin",
+            "/usr/java/latest/bin"
+        ]
+    
+    # Add possible Java paths to environment
+    for path in possible_paths:
+        if os.path.exists(path):
+            if 'PATH' in os.environ:
+                os.environ['PATH'] = path + os.pathsep + os.environ['PATH']
+            else:
+                os.environ['PATH'] = path
+            return True
+            
+    return False
+
 def pdf_to_excel(pdf_path, output_path):
     """
-    Convert PDF to Excel file
+    Convert PDF to Excel file with Java path configuration
     
     Parameters:
     pdf_path (str): Path to PDF file
@@ -21,8 +64,13 @@ def pdf_to_excel(pdf_path, output_path):
     str: Path to created Excel file
     """
     try:
-        # Read PDF file
-        tables = tabula.read_pdf(pdf_path, pages='all', multiple_tables=True)
+        # Setup Java path before conversion
+        if not setup_java_path():
+            raise Exception("Java installation not found in common locations. Please install Java and set PATH manually.")
+            
+        # Read PDF file using tabula-py
+        from tabula import read_pdf
+        tables = read_pdf(pdf_path, pages='all', multiple_tables=True)
         
         # Create Excel writer object
         with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
@@ -51,7 +99,6 @@ def pdf_to_excel(pdf_path, output_path):
         return output_path
     except Exception as e:
         raise Exception(f"Error converting PDF to Excel: {str(e)}")
-
 def get_excel_sheets(file):
     """Get list of sheet names from Excel file"""
     return pd.ExcelFile(file).sheet_names

@@ -2,5 +2,5 @@ pandas
 openpyxl
 streamlit
 pathlib
-tabula
+tabula-py
 pypdf2
